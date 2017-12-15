@@ -232,6 +232,35 @@ out:
 	return r;
 }
 
+int expose_pmu_cpuid(struct kvm_vcpu *vcpu)
+{
+	int i, flag = 0;
+	unsigned regs[4];
+	__asm__(
+			"movl $0xa, %%eax\n\t"
+			"cpuid\n\t"
+			:"=a"(regs[0]), "=b"(regs[1]), "=c"(regs[2]), "=d"(regs[3])
+	       );
+	for(i = 0; i < vcpu->arch.cpuid_nent; ++i) {
+		if(vcpu->arch.cpuid_entries[i].function == 0xa) {
+			flag = 1;
+			break;
+		}
+	}
+	if(i < KVM_MAX_CPUID_ENTRIES) {
+		if(!flag) {
+			vcpu->arch.cpuid_nent++;
+			vcpu->arch.cpuid_entries[i].function = 0xa;
+		}
+		vcpu->arch.cpuid_entries[i].eax = regs[0];
+		vcpu->arch.cpuid_entries[i].ebx = regs[1];
+		vcpu->arch.cpuid_entries[i].ecx = regs[2];
+		vcpu->arch.cpuid_entries[i].edx = regs[3];
+		return 1;
+	}
+	return 0;
+}
+
 int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 			      struct kvm_cpuid2 *cpuid,
 			      struct kvm_cpuid_entry2 __user *entries)
@@ -248,6 +277,10 @@ int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 	vcpu->arch.cpuid_nent = cpuid->nent;
 	kvm_apic_set_version(vcpu);
 	kvm_x86_ops->cpuid_update(vcpu);
+	if(!expose_pmu_cpuid(vcpu))
+		printk(KERN_NOTICE "expose_pmu_cpuid failed\n");
+	else
+		printk(KERN_NOTICE "expose_pmu_cpuid succ\n");
 	r = kvm_update_cpuid(vcpu);
 out:
 	return r;
