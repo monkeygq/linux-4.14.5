@@ -34,6 +34,7 @@ struct kvm_pmu_ops {
 static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+	printk(KERN_NOTICE "pmu.h, pmc_bitmask\n");
 
 	return pmu->counter_bitmask[pmc->type];
 }
@@ -41,17 +42,20 @@ static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 static inline u64 pmc_read_counter(struct kvm_pmc *pmc)
 {
 	u64 counter, enabled, running;
+	printk(KERN_NOTICE "pmu.h, pmc_read_counter\n");
 
 	counter = pmc->counter;
 	if (pmc->perf_event)
 		counter += perf_event_read_value(pmc->perf_event,
 						 &enabled, &running);
 	/* FIXME: Scaling needed? */
+	printk(KERN_NOTICE "pmu.h, pmc_read_counter: data=%llu\n", counter & pmc_bitmask(pmc));
 	return counter & pmc_bitmask(pmc);
 }
 
 static inline void pmc_stop_counter(struct kvm_pmc *pmc)
 {
+	printk(KERN_NOTICE "pmu.h, pmc_stop_counter\n");
 	if (pmc->perf_event) {
 		pmc->counter = pmc_read_counter(pmc);
 		perf_event_release_kernel(pmc->perf_event);
@@ -61,16 +65,19 @@ static inline void pmc_stop_counter(struct kvm_pmc *pmc)
 
 static inline bool pmc_is_gp(struct kvm_pmc *pmc)
 {
+	printk(KERN_NOTICE "pmu.h, pmc_is_gp\n");
 	return pmc->type == KVM_PMC_GP;
 }
 
 static inline bool pmc_is_fixed(struct kvm_pmc *pmc)
 {
+	printk(KERN_NOTICE "pmu.h, pmc_is_fixed\n");
 	return pmc->type == KVM_PMC_FIXED;
 }
 
 static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
 {
+	printk(KERN_NOTICE "pmu.h, pmc_is_enabled\n");
 	return kvm_x86_ops->pmu_ops->pmc_is_enabled(pmc);
 }
 
@@ -81,6 +88,7 @@ static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
 static inline struct kvm_pmc *get_gp_pmc(struct kvm_pmu *pmu, u32 msr,
 					 u32 base)
 {
+	printk(KERN_NOTICE "pmu.h, get_gp_pmc\n");
 	if (msr >= base && msr < base + pmu->nr_arch_gp_counters)
 		return &pmu->gp_counters[msr - base];
 
@@ -91,6 +99,7 @@ static inline struct kvm_pmc *get_gp_pmc(struct kvm_pmu *pmu, u32 msr,
 static inline struct kvm_pmc *get_fixed_pmc(struct kvm_pmu *pmu, u32 msr)
 {
 	int base = MSR_CORE_PERF_FIXED_CTR0;
+	printk(KERN_NOTICE "pmu.h, get_fixed_pmc\n");
 
 	if (msr >= base && msr < base + pmu->nr_arch_fixed_counters)
 		return &pmu->fixed_counters[msr - base];

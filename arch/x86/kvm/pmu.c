@@ -51,8 +51,10 @@ static void kvm_pmi_trigger_fn(struct irq_work *irq_work)
 {
 	struct kvm_pmu *pmu = container_of(irq_work, struct kvm_pmu, irq_work);
 	struct kvm_vcpu *vcpu = pmu_to_vcpu(pmu);
+	printk(KERN_NOTICE "kvm_pmi_trigger_fn start\n");
 
 	kvm_pmu_deliver_pmi(vcpu);
+	printk(KERN_NOTICE "kvm_pmi_trigger_fn end\n");
 }
 
 static void kvm_perf_overflow(struct perf_event *perf_event,
@@ -61,12 +63,14 @@ static void kvm_perf_overflow(struct perf_event *perf_event,
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+	printk(KERN_NOTICE "kvm_perf_overflow start\n");
 
 	if (!test_and_set_bit(pmc->idx,
 			      (unsigned long *)&pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 	}
+	printk(KERN_NOTICE "kvm_perf_overflow end\n");
 }
 
 static void kvm_perf_overflow_intr(struct perf_event *perf_event,
@@ -75,6 +79,7 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+	printk(KERN_NOTICE "kvm_perf_overflow_intr start\n");
 
 	if (!test_and_set_bit(pmc->idx,
 			      (unsigned long *)&pmu->reprogram_pmi)) {
@@ -94,6 +99,7 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 		else
 			kvm_make_request(KVM_REQ_PMI, pmc->vcpu);
 	}
+	printk(KERN_NOTICE "kvm_perf_overflow_intr end\n");
 }
 
 static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
@@ -112,6 +118,7 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		.exclude_kernel = exclude_kernel,
 		.config = config,
 	};
+	printk(KERN_NOTICE "pmc_reprogram_counter start\n");
 
 	attr.sample_period = (-pmc->counter) & pmc_bitmask(pmc);
 
@@ -138,12 +145,14 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 
 	pmc->perf_event = event;
 	clear_bit(pmc->idx, (unsigned long*)&pmc_to_pmu(pmc)->reprogram_pmi);
+	printk(KERN_NOTICE "pmc_reprogram_counter end\n");
 }
 
 void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 {
 	unsigned config, type = PERF_TYPE_RAW;
 	u8 event_select, unit_mask;
+	printk(KERN_NOTICE "reprogram_gp_counter start\n");
 
 	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
 		printk_once("kvm pmu: pin control bit is ignored\n");
@@ -179,6 +188,7 @@ void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 			      eventsel & ARCH_PERFMON_EVENTSEL_INT,
 			      (eventsel & HSW_IN_TX),
 			      (eventsel & HSW_IN_TX_CHECKPOINTED));
+	printk(KERN_NOTICE "reprogram_gp_counter end\n");
 }
 EXPORT_SYMBOL_GPL(reprogram_gp_counter);
 
@@ -186,6 +196,7 @@ void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
 {
 	unsigned en_field = ctrl & 0x3;
 	bool pmi = ctrl & 0x8;
+	printk(KERN_NOTICE "reprogram_fixed_counter start\n");
 
 	pmc_stop_counter(pmc);
 
@@ -197,12 +208,14 @@ void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
 			      !(en_field & 0x2), /* exclude user */
 			      !(en_field & 0x1), /* exclude kernel */
 			      pmi, false, false);
+	printk(KERN_NOTICE "reprogram_fixed_counter end\n");
 }
 EXPORT_SYMBOL_GPL(reprogram_fixed_counter);
 
 void reprogram_counter(struct kvm_pmu *pmu, int pmc_idx)
 {
 	struct kvm_pmc *pmc = kvm_x86_ops->pmu_ops->pmc_idx_to_pmc(pmu, pmc_idx);
+	printk(KERN_NOTICE "reprogram_counter: %x start\n", pmc_idx);
 
 	if (!pmc)
 		return;
@@ -215,6 +228,7 @@ void reprogram_counter(struct kvm_pmu *pmu, int pmc_idx)
 
 		reprogram_fixed_counter(pmc, ctrl, idx);
 	}
+	printk(KERN_NOTICE "reprogram_counter end\n");
 }
 EXPORT_SYMBOL_GPL(reprogram_counter);
 
@@ -223,6 +237,7 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	u64 bitmask;
 	int bit;
+	printk(KERN_NOTICE "kvm_pmu_handle_event start\n");
 
 	bitmask = pmu->reprogram_pmi;
 
@@ -236,11 +251,13 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 
 		reprogram_counter(pmu, bit);
 	}
+	printk(KERN_NOTICE "kvm_pmu_handle_event end\n");
 }
 
 /* check if idx is a valid index to access PMU */
 int kvm_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 {
+	printk(KERN_NOTICE "kvm_pmu_is_valid_msr_idx: %x\n", idx);
 	return kvm_x86_ops->pmu_ops->is_valid_msr_idx(vcpu, idx);
 }
 
@@ -249,6 +266,7 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 	bool fast_mode = idx & (1u << 31);
 	struct kvm_pmc *pmc;
 	u64 ctr_val;
+	printk(KERN_NOTICE "kvm_pmu_rdpmc: %x\n", idx);
 
 	pmc = kvm_x86_ops->pmu_ops->msr_idx_to_pmc(vcpu, idx);
 	if (!pmc)
@@ -264,22 +282,27 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 
 void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 {
+	printk(KERN_NOTICE "kvm_pmu_deliver_pmi start\n");
 	if (lapic_in_kernel(vcpu))
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
+	printk(KERN_NOTICE "kvm_pmu_deliver_pmi end\n");
 }
 
 bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
+	printk(KERN_NOTICE "kvm_pmu_is_valid_msr: %x\n", msr);
 	return kvm_x86_ops->pmu_ops->is_valid_msr(vcpu, msr);
 }
 
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 {
+	printk(KERN_NOTICE "kvm_pmu_get_msr: %x\n", msr);
 	return kvm_x86_ops->pmu_ops->get_msr(vcpu, msr, data);
 }
 
 int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
+	printk(KERN_NOTICE "kvm_pmu_set_msr: %x\n", msr_info->index);
 	return kvm_x86_ops->pmu_ops->set_msr(vcpu, msr_info);
 }
 
@@ -289,28 +312,35 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
  */
 void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 {
+	printk(KERN_NOTICE "kvm_pmu_refresh\n");
 	kvm_x86_ops->pmu_ops->refresh(vcpu);
 }
 
 void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	printk(KERN_NOTICE "kvm_pmu_reset start\n");
 
 	irq_work_sync(&pmu->irq_work);
 	kvm_x86_ops->pmu_ops->reset(vcpu);
+	printk(KERN_NOTICE "kvm_pmu_reset end\n");
 }
 
 void kvm_pmu_init(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	printk(KERN_NOTICE "kvm_pmu_init start\n");
 
 	memset(pmu, 0, sizeof(*pmu));
 	kvm_x86_ops->pmu_ops->init(vcpu);
 	init_irq_work(&pmu->irq_work, kvm_pmi_trigger_fn);
 	kvm_pmu_refresh(vcpu);
+	printk(KERN_NOTICE "kvm_pmu_init end\n");
 }
 
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 {
+	printk(KERN_NOTICE "kvm_pmu_destroy start\n");
 	kvm_pmu_reset(vcpu);
+	printk(KERN_NOTICE "kvm_pmu_destroy end\n");
 }
