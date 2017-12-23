@@ -141,7 +141,7 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
 	kvm_mmu_reset_context(vcpu);
 
-	kvm_pmu_refresh(vcpu);
+	kvm_pmu_cpuid_update(vcpu);
 	return 0;
 }
 
