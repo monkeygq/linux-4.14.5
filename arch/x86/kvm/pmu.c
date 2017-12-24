@@ -291,12 +291,19 @@ static void reprogram_idx(struct kvm_pmu *pmu, int idx)
 static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 {
 	int bit;
+	struct kvm_pmc *pmc;
 	u64 diff = pmu->global_ctrl ^ data;
 
 	pmu->global_ctrl = data;
 
-	for_each_set_bit(bit, (unsigned long *)&diff, X86_PMC_IDX_MAX)
-		reprogram_idx(pmu, bit);
+	for_each_set_bit(bit, (unsigned long *)&diff, X86_PMC_IDX_MAX) {
+		if(test_bit(bit, (unsigned long *)&data))
+			reprogram_idx(pmu, bit);
+		else {
+			pmc = global_idx_to_pmc(pmu, bit);
+			stop_counter(pmc);
+		}
+	}
 }
 
 bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr)
