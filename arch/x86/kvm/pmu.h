@@ -1,5 +1,12 @@
 #ifndef __KVM_X86_PMU_H
 #define __KVM_X86_PMU_H
+#include <asm/asm.h>
+#include <asm/vmx.h>
+#include <linux/kvm_host.h>
+#include <linux/types.h>
+
+#define __pmu_ex_clear(x, reg) \
+	____kvm_handle_fault_on_reboot(x, "xor " reg ", " reg)
 
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu);
 bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr);
@@ -12,4 +19,5 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu);
 void kvm_pmu_reset(struct kvm_vcpu *vcpu);
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu);
 void kvm_handle_pmu_event(struct kvm_vcpu *vcpu);
+
 #endif /* __KVM_X86_PMU_H */

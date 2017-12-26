@@ -7,6 +7,34 @@
 #include "lapic.h"
 #include "pmu.h"
 
+static inline unsigned long __pmu_vmcs_readl(unsigned long field)
+{
+	unsigned long value;
+
+	asm volatile (__pmu_ex_clear(ASM_VMX_VMREAD_RDX_RAX, "%0")
+			: "=a"(value) : "d"(field) : "cc");
+	return value;
+}
+
+static inline u16 pmu_vmcs_read16(unsigned long field)
+{
+	return __pmu_vmcs_readl(field);
+}
+
+static inline u32 pmu_vmcs_read32(unsigned long field)
+{
+	return __pmu_vmcs_readl(field);
+}
+
+static inline u64 pmu_vmcs_read64(unsigned long field)
+{
+#ifdef CONFIG_X86_64
+	return __pmu_vmcs_readl(field);
+#else
+	return __pmu_vmcs_readl(field) | ((u64)__pmu_vmcs_readl(field+1) << 32);
+#endif
+}
+
 static struct kvm_arch_event_perf_mapping {
 	u8 eventsel;
 	u8 unit_mask;
@@ -76,6 +104,8 @@ static struct kvm_pmc *global_idx_to_pmc(struct kvm_pmu *pmu, int idx)
 
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
 {
+	printk(KERN_NOTICE "kvm_deliver_pmi\n");
+	printk(KERN_NOTICE "vmcs_read64(GUEST_IA32_DEBUGCTL) = %llx\n", pmu_vmcs_read64(GUEST_IA32_DEBUGCTL));
 	if (vcpu->arch.apic)
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
 }
@@ -96,6 +126,7 @@ static void kvm_perf_overflow(struct perf_event *perf_event,
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
+	printk(KERN_NOTICE "kvm_perf_overflow\n");
 	if (!test_and_set_bit(pmc->idx, (unsigned long *)&pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
@@ -107,6 +138,7 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
+	printk(KERN_NOTICE "kvm_perf_overflow_intr\n");
 	if (!test_and_set_bit(pmc->idx, (unsigned long *)&pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
@@ -335,23 +367,29 @@ int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 	switch (index) {
 		case MSR_CORE_PERF_FIXED_CTR_CTRL:
 			*data = pmu->fixed_ctr_ctrl;
+			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
 			return 0;
 		case MSR_CORE_PERF_GLOBAL_STATUS:
 			*data = pmu->global_status;
+			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
 			return 0;
 		case MSR_CORE_PERF_GLOBAL_CTRL:
 			*data = pmu->global_ctrl;
+			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
 			return 0;
 		case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
 			*data = pmu->global_ovf_ctrl;
+			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
 			return 0;
 		default:
 			if ((pmc = get_gp_pmc(pmu, index, MSR_IA32_PERFCTR0)) ||
 					(pmc = get_fixed_pmc(pmu, index))) {
 				*data = read_pmc(pmc);
+				printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
 				return 0;
 			} else if ((pmc = get_gp_pmc(pmu, index, MSR_P6_EVNTSEL0))) {
 				*data = pmc->eventsel;
+				printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
 				return 0;
 			}
 	}
@@ -364,6 +402,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	struct kvm_pmc *pmc;
 	u32 index = msr_info->index;
 	u64 data = msr_info->data;
+	printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x, data = %llx\n", index, data);
 
 	switch (index) {
 		case MSR_CORE_PERF_FIXED_CTR_CTRL:
@@ -548,6 +587,7 @@ void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)
 	int bit;
 
 	bitmask = pmu->reprogram_pmi;
+	printk(KERN_NOTICE "kvm_handle_pmu_event: pmu->reprogram_pmi = %llx\n", bitmask);
 
 	for_each_set_bit(bit, (unsigned long *)&bitmask, X86_PMC_IDX_MAX) {
 		struct kvm_pmc *pmc = global_idx_to_pmc(pmu, bit);
