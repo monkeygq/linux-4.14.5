@@ -645,8 +645,6 @@ void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
 {
 	printk(KERN_NOTICE "kvm_deliver_pmi\n");
-	printk(KERN_NOTICE "vmcs_read(VM_EXIT_CONTROLS) = %x\n", pmu_vmcs_read32(VM_EXIT_CONTROLS));
-	printk(KERN_NOTICE "vmcs_read(VM_ENTRY_CONTROLS) = %x\n", pmu_vmcs_read32(VM_ENTRY_CONTROLS));
 	kvm_pmu_freeze_perfmon_on_pmi(vcpu);
 	kvm_pmu_freeze_lbrs_on_pmi(vcpu);
 	if (vcpu->arch.apic)

@@ -2180,16 +2180,20 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		}
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
+		if (data & DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI) {
+			printk(KERN_NOTICE "x86.c, set pmu.freeze_perfmon_on_pmi\n");
+			vcpu->arch.pmu.freeze_perfmon_on_pmi = 1;
+		}
+		if (data & DEBUGCTLMSR_FREEZE_LBRS_ON_PMI) {
+			printk(KERN_NOTICE "x86.c, set pmu.freeze_lbrs_on_pmi\n");
+			vcpu->arch.pmu.freeze_lbrs_on_pmi = 1;
+		}
 		if (!data) {
 			/* We support the non-activated case already */
 			break;
 		} else if (data & ~(DEBUGCTLMSR_FREEZE_LBRS_ON_PMI | DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI | DEBUGCTLMSR_LBR | DEBUGCTLMSR_BTF)) {
 			/* Values other than LBR and BTF are vendor-specific,
 			   thus reserved and should throw a #GP */
-			if (data & DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI)
-				vcpu->arch.pmu.freeze_perfmon_on_pmi = 1;
-			if (data & DEBUGCTLMSR_FREEZE_LBRS_ON_PMI)
-				vcpu->arch.pmu.freeze_lbrs_on_pmi = 1;
 			return 1;
 		}
 		vcpu_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTLMSR 0x%llx, nop\n",
@@ -2422,7 +2426,6 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	switch (msr_info->index) {
 	case MSR_IA32_PLATFORM_ID:
 	case MSR_IA32_EBL_CR_POWERON:
-	case MSR_IA32_DEBUGCTLMSR:
 	case MSR_IA32_LASTBRANCHFROMIP:
 	case MSR_IA32_LASTBRANCHTOIP:
 	case MSR_IA32_LASTINTFROMIP:
@@ -2439,6 +2442,15 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_PERF_CTL:
 	case MSR_AMD64_DC_CFG:
 		msr_info->data = 0;
+		break;
+	case MSR_IA32_DEBUGCTLMSR:
+		msr_info->data = 0;
+		if (vcpu->arch.pmu.freeze_perfmon_on_pmi) {
+			msr_info->data |= DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI;
+		}
+		if (vcpu->arch.pmu.freeze_lbrs_on_pmi) {
+			msr_info->data |= DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
+		}
 		break;
 	case MSR_K7_EVNTSEL0 ... MSR_K7_EVNTSEL3:
 	case MSR_K7_PERFCTR0 ... MSR_K7_PERFCTR3:
