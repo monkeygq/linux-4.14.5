@@ -8,6 +8,8 @@
 #define __pmu_ex_clear(x, reg) \
 	____kvm_handle_fault_on_reboot(x, "xor " reg ", " reg)
 
+#define __pmu_ex(x) __kvm_handle_fault_on_reboot(x)
+
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu);
 bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr);
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data);

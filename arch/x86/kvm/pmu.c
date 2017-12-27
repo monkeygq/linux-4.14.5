@@ -35,6 +35,32 @@ static inline u64 pmu_vmcs_read64(unsigned long field)
 #endif
 }
 
+static inline void __pmu_vmcs_writel(unsigned long field, unsigned long value)
+{
+	u8 error;
+	asm volatile (__pmu_ex(ASM_VMX_VMWRITE_RAX_RDX) "; setna %0"
+			: "=q"(error) : "a"(value), "d"(field) : "cc");
+}
+
+static inline void pmu_vmcs_write16(unsigned long field, u16 value)
+{
+	__pmu_vmcs_writel(field, value);
+}
+
+static __always_inline void vmcs_write32(unsigned long field, u32 value)
+{
+	__pmu_vmcs_writel(field, value);
+}
+
+static __always_inline void vmcs_write64(unsigned long field, u64 value)
+{
+	__pmu_vmcs_writel(field, value);
+#ifndef CONFIG_X86_64
+	asm volatile ("");
+	__pmu_vmcs_writel(field+1, value >> 32);
+#endif
+}
+
 static struct kvm_arch_event_perf_mapping {
 	u8 eventsel;
 	u8 unit_mask;
