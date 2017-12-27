@@ -47,12 +47,12 @@ static inline void pmu_vmcs_write16(unsigned long field, u16 value)
 	__pmu_vmcs_writel(field, value);
 }
 
-static __always_inline void vmcs_write32(unsigned long field, u32 value)
+static inline void pmu_vmcs_write32(unsigned long field, u32 value)
 {
 	__pmu_vmcs_writel(field, value);
 }
 
-static __always_inline void vmcs_write64(unsigned long field, u64 value)
+static inline void pmu_vmcs_write64(unsigned long field, u64 value)
 {
 	__pmu_vmcs_writel(field, value);
 #ifndef CONFIG_X86_64
@@ -365,6 +365,18 @@ static void kvm_pmu_freeze_perfmon_on_pmi(struct kvm_vcpu *vcpu)
 	}
 }
 
+static void kvm_pmu_freeze_lbrs_on_pmi(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	u32 debugctl_msr;
+	if ((pmu->version > 1) && (pmu->version <= 3) && (pmu->freeze_lbrs_on_pmi)) {
+		printk(KERN_NOTICE "kvm_pmu_freeze_lbrs_on_pmi\n");
+		debugctl_msr = pmu_vmcs_read32(GUEST_IA32_DEBUGCTL);
+		clear_bit(0, (unsigned long *)&debugctl_msr);
+		pmu_vmcs_write32(GUEST_IA32_DEBUGCTL, debugctl_msr);
+	}
+}
+
 bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
@@ -526,6 +538,7 @@ void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu)
 	pmu->version = 0;
 	pmu->reserved_bits = 0xffffffff00200000ull;
 	pmu->freeze_perfmon_on_pmi = 0;
+	pmu->freeze_lbrs_on_pmi = 0;
 
 	entry = kvm_find_cpuid_entry(vcpu, 0xa, 0);
 	if (!entry)
@@ -635,6 +648,7 @@ void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
 	printk(KERN_NOTICE "vmcs_read(VM_EXIT_CONTROLS) = %x\n", pmu_vmcs_read32(VM_EXIT_CONTROLS));
 	printk(KERN_NOTICE "vmcs_read(VM_ENTRY_CONTROLS) = %x\n", pmu_vmcs_read32(VM_ENTRY_CONTROLS));
 	kvm_pmu_freeze_perfmon_on_pmi(vcpu);
+	kvm_pmu_freeze_lbrs_on_pmi(vcpu);
 	if (vcpu->arch.apic)
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
 }
