@@ -330,6 +330,14 @@ static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 	}
 }
 
+static void kvm_pmu_freeze_perfmon_on_pmi(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	printk(KERN_NOTICE "kvm_pmu_freeze_perfmon_on_pmi\n");
+	if ((pmu->version > 1) && (pmu->freeze_perfmon_on_pmi))
+		global_ctrl_changed(pmu, (u64)0);
+}
+
 bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
@@ -596,10 +604,8 @@ void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)
 
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	printk(KERN_NOTICE "kvm_deliver_pmi\n");
-	if ((pmu->version > 1) && (pmu->freeze_perfmon_on_pmi))
-		global_ctrl_changed(pmu, (u64)0);
+	kvm_pmu_freeze_perfmon_on_pmi(vcpu);
 	if (vcpu->arch.apic)
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
 }
