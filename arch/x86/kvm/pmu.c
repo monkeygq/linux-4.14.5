@@ -102,14 +102,6 @@ static struct kvm_pmc *global_idx_to_pmc(struct kvm_pmu *pmu, int idx)
 		return get_fixed_pmc_idx(pmu, idx - INTEL_PMC_IDX_FIXED);
 }
 
-void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
-{
-	printk(KERN_NOTICE "kvm_deliver_pmi\n");
-	printk(KERN_NOTICE "vmcs_read64(GUEST_IA32_DEBUGCTL) = %llx\n", pmu_vmcs_read64(GUEST_IA32_DEBUGCTL));
-	if (vcpu->arch.apic)
-		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
-}
-
 static void trigger_pmi(struct irq_work *irq_work)
 {
 	struct kvm_pmu *pmu = container_of(irq_work, struct kvm_pmu,
@@ -498,6 +490,7 @@ void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu)
 	pmu->counter_bitmask[KVM_PMC_FIXED] = 0;
 	pmu->version = 0;
 	pmu->reserved_bits = 0xffffffff00200000ull;
+	pmu->freeze_perfmon_on_pmi = 0;
 
 	entry = kvm_find_cpuid_entry(vcpu, 0xa, 0);
 	if (!entry)
@@ -599,4 +592,14 @@ void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)
 
 		reprogram_idx(pmu, bit);
 	}
+}
+
+void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	printk(KERN_NOTICE "kvm_deliver_pmi\n");
+	if ((pmu->version > 1) && (pmu->freeze_perfmon_on_pmi))
+		global_ctrl_changed(pmu, (u64)0);
+	if (vcpu->arch.apic)
+		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
 }

@@ -2183,9 +2183,11 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!data) {
 			/* We support the non-activated case already */
 			break;
-		} else if (data & ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_BTF)) {
+		} else if (data & ~(DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI | DEBUGCTLMSR_LBR | DEBUGCTLMSR_BTF)) {
 			/* Values other than LBR and BTF are vendor-specific,
 			   thus reserved and should throw a #GP */
+			if (data & DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI)
+				vcpu->arch.pmu.freeze_perfmon_on_pmi = 1;
 			return 1;
 		}
 		vcpu_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTLMSR 0x%llx, nop\n",
