@@ -160,8 +160,10 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 	if (!test_and_set_bit(pmc->idx, (unsigned long *)&pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
-		if (!kvm_is_in_guest())
+		if (!kvm_is_in_guest()) {
+			printk(KERN_NOTICE "irq_work_queue\n");
 			irq_work_queue(&pmc->vcpu->arch.pmu.irq_work);
+		}
 		else
 			kvm_make_request(KVM_REQ_PMI, pmc->vcpu);
 	}
@@ -359,9 +361,12 @@ static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 static void kvm_pmu_freeze_perfmon_on_pmi(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	u64 data = 0;
 	if ((pmu->version > 1) && (pmu->freeze_perfmon_on_pmi)) {
-		printk(KERN_NOTICE "kvm_pmu_freeze_perfmon_on_pmi\n");
-		global_ctrl_changed(pmu, (u64)0);
+		if ((pmu->global_ctrl != data) && !(data & pmu->global_ctrl_mask)) {
+			printk(KERN_NOTICE "kvm_pmu_freeze_perfmon_on_pmi\n");
+			global_ctrl_changed(pmu, data);
+		}
 	}
 }
 
@@ -629,6 +634,8 @@ void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)
 
 	bitmask = pmu->reprogram_pmi;
 	printk(KERN_NOTICE "kvm_handle_pmu_event: pmu->reprogram_pmi = %llx\n", bitmask);
+	kvm_pmu_freeze_perfmon_on_pmi(vcpu);
+	kvm_pmu_freeze_lbrs_on_pmi(vcpu);
 
 	for_each_set_bit(bit, (unsigned long *)&bitmask, X86_PMC_IDX_MAX) {
 		struct kvm_pmc *pmc = global_idx_to_pmc(pmu, bit);
@@ -645,8 +652,6 @@ void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
 {
 	printk(KERN_NOTICE "kvm_deliver_pmi\n");
-	kvm_pmu_freeze_perfmon_on_pmi(vcpu);
-	kvm_pmu_freeze_lbrs_on_pmi(vcpu);
 	if (vcpu->arch.apic)
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
 }
