@@ -376,10 +376,23 @@ static void kvm_pmu_freeze_lbrs_on_pmi(struct kvm_vcpu *vcpu)
 	u32 debugctl_msr;
 	if ((pmu->version > 1) && (pmu->version <= 3) && (pmu->freeze_lbrs_on_pmi)) {
 		printk(KERN_NOTICE "kvm_pmu_freeze_lbrs_on_pmi\n");
+		pmu->debugctl_lbr = 0;
 		debugctl_msr = pmu_vmcs_read32(GUEST_IA32_DEBUGCTL);
 		clear_bit(0, (unsigned long *)&debugctl_msr);
 		pmu_vmcs_write32(GUEST_IA32_DEBUGCTL, debugctl_msr);
 	}
+}
+
+void kvm_pmu_set_debugctl_lbr(struct kvm_vcpu * vcpu, bool flag)
+{
+	u32 debugctl_msr;
+		debugctl_msr = pmu_vmcs_read32(GUEST_IA32_DEBUGCTL);
+		if (flag)
+			__set_bit(0, (unsigned long *)&debugctl_msr);
+		else
+			clear_bit(0, (unsigned long *)&debugctl_msr);
+		pmu_vmcs_write32(GUEST_IA32_DEBUGCTL, debugctl_msr);
+
 }
 
 bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr)
@@ -544,6 +557,7 @@ void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu)
 	pmu->reserved_bits = 0xffffffff00200000ull;
 	pmu->freeze_perfmon_on_pmi = 0;
 	pmu->freeze_lbrs_on_pmi = 0;
+	pmu->debugctl_lbr = 0;
 
 	entry = kvm_find_cpuid_entry(vcpu, 0xa, 0);
 	if (!entry)

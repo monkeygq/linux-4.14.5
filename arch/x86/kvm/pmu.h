@@ -21,5 +21,6 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu);
 void kvm_pmu_reset(struct kvm_vcpu *vcpu);
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu);
 void kvm_handle_pmu_event(struct kvm_vcpu *vcpu);
+void kvm_pmu_set_debugctl_lbr(struct kvm_vcpu *vcpu, bool flag);
 
 #endif /* __KVM_X86_PMU_H */

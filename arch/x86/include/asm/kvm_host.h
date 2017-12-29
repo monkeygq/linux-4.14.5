@@ -406,6 +406,7 @@ struct kvm_pmu {
 	unsigned available_event_types;
 	bool freeze_perfmon_on_pmi;
 	bool freeze_lbrs_on_pmi;
+	bool debugctl_lbr;
 	u64 fixed_ctr_ctrl;
 	u64 global_ctrl;
 	u64 global_status;
