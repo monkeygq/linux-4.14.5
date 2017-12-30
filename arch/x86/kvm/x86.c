@@ -2462,16 +2462,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = 0;
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
-		msr_info->data = 0;
-		if (vcpu->arch.pmu.freeze_perfmon_on_pmi) {
-			msr_info->data |= DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI;
-		}
-		if (vcpu->arch.pmu.freeze_lbrs_on_pmi) {
-			msr_info->data |= DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
-		}
-		if (vcpu->arch.pmu.debugctl_lbr) {
-			msr_info->data |= DEBUGCTLMSR_LBR;
-		}
+		msr_info->data = kvm_pmu_read_debugctl_msr(vcpu);
 		break;
 	case MSR_K7_EVNTSEL0 ... MSR_K7_EVNTSEL3:
 	case MSR_K7_PERFCTR0 ... MSR_K7_PERFCTR3:

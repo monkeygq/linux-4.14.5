@@ -386,12 +386,12 @@ static void kvm_pmu_freeze_lbrs_on_pmi(struct kvm_vcpu *vcpu)
 void kvm_pmu_set_debugctl_lbr(struct kvm_vcpu * vcpu, bool flag)
 {
 	u32 debugctl_msr;
-		debugctl_msr = pmu_vmcs_read32(GUEST_IA32_DEBUGCTL);
-		if (flag)
-			__set_bit(0, (unsigned long *)&debugctl_msr);
-		else
-			clear_bit(0, (unsigned long *)&debugctl_msr);
-		pmu_vmcs_write32(GUEST_IA32_DEBUGCTL, debugctl_msr);
+	debugctl_msr = pmu_vmcs_read32(GUEST_IA32_DEBUGCTL);
+	if (flag)
+		__set_bit(0, (unsigned long *)&debugctl_msr);
+	else
+		clear_bit(0, (unsigned long *)&debugctl_msr);
+	pmu_vmcs_write32(GUEST_IA32_DEBUGCTL, debugctl_msr);
 
 }
 
@@ -668,4 +668,20 @@ void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
 	printk(KERN_NOTICE "kvm_deliver_pmi\n");
 	if (vcpu->arch.apic)
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
+}
+
+u64 kvm_pmu_read_debugctl_msr(struct kvm_vcpu *vcpu)
+{
+	u64 data = 0;
+	struct kvm_pmu pmu = vcpu->arch.pmu;
+	if (pmu.freeze_perfmon_on_pmi) {
+		data |= DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI;
+	}
+	if (pmu.freeze_lbrs_on_pmi) {
+		data |= DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
+	}
+	if (pmu.debugctl_lbr) {
+		data |= DEBUGCTLMSR_LBR;
+	}
+	return data;
 }
