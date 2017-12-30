@@ -673,15 +673,47 @@ void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
 u64 kvm_pmu_read_debugctl_msr(struct kvm_vcpu *vcpu)
 {
 	u64 data = 0;
-	struct kvm_pmu pmu = vcpu->arch.pmu;
-	if (pmu.freeze_perfmon_on_pmi) {
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	if (pmu->freeze_perfmon_on_pmi) {
 		data |= DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI;
 	}
-	if (pmu.freeze_lbrs_on_pmi) {
+	if (pmu->freeze_lbrs_on_pmi) {
 		data |= DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
 	}
-	if (pmu.debugctl_lbr) {
+	if (pmu->debugctl_lbr) {
 		data |= DEBUGCTLMSR_LBR;
 	}
+	printk(KERN_NOTICE "pmu.c, kvm_pmu_read_debugctl_msr: %llx\n", data);
 	return data;
+}
+
+void kvm_pmu_write_debugctl_msr(struct kvm_vcpu *vcpu, u64 data)
+{
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	if (data & DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI) {
+		printk(KERN_NOTICE "pmu.c, set pmu.freeze_perfmon_on_pmi\n");
+		pmu->freeze_perfmon_on_pmi = 1;
+	}
+	else {
+		printk(KERN_NOTICE "pmu.c, clear pmu.freeze_perfmon_on_pmi\n");
+		pmu->freeze_perfmon_on_pmi = 0;
+	}
+	if (data & DEBUGCTLMSR_FREEZE_LBRS_ON_PMI) {
+		printk(KERN_NOTICE "pmu.c, set pmu.freeze_lbrs_on_pmi\n");
+		pmu->freeze_lbrs_on_pmi = 1;
+	}
+	else {
+		printk(KERN_NOTICE "pmu.c, clear pmu.freeze_lbrs_on_pmi\n");
+		pmu->freeze_lbrs_on_pmi = 0;
+	}
+	if (data & DEBUGCTLMSR_LBR) {
+		printk(KERN_NOTICE "pmu.c, set debugctrl lbr\n");
+		pmu->debugctl_lbr = 1;
+		kvm_pmu_set_debugctl_lbr(vcpu, true);
+	}
+	else {
+		printk(KERN_NOTICE "pmu.c, clear debugctrl lbr\n");
+		pmu->debugctl_lbr = 0;
+		kvm_pmu_set_debugctl_lbr(vcpu, false);
+	}
 }

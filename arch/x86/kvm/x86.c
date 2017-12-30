@@ -2180,32 +2180,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		}
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
-		if (data & DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI) {
-			printk(KERN_NOTICE "x86.c, set pmu.freeze_perfmon_on_pmi\n");
-			vcpu->arch.pmu.freeze_perfmon_on_pmi = 1;
-		}
-		else {
-			printk(KERN_NOTICE "x86.c, clear pmu.freeze_perfmon_on_pmi\n");
-			vcpu->arch.pmu.freeze_perfmon_on_pmi = 0;
-		}
-		if (data & DEBUGCTLMSR_FREEZE_LBRS_ON_PMI) {
-			printk(KERN_NOTICE "x86.c, set pmu.freeze_lbrs_on_pmi\n");
-			vcpu->arch.pmu.freeze_lbrs_on_pmi = 1;
-		}
-		else {
-			printk(KERN_NOTICE "x86.c, clear pmu.freeze_lbrs_on_pmi\n");
-			vcpu->arch.pmu.freeze_lbrs_on_pmi = 0;
-		}
-		if (data & DEBUGCTLMSR_LBR) {
-			printk(KERN_NOTICE "x86.c, set debugctrl lbr\n");
-			vcpu->arch.pmu.debugctl_lbr = 1;
-			kvm_set_debugctl_lbr(vcpu, true);
-		}
-		else {
-			printk(KERN_NOTICE "x86.c, clear debugctrl lbr\n");
-			vcpu->arch.pmu.debugctl_lbr = 0;
-			kvm_set_debugctl_lbr(vcpu, false);
-		}
+		kvm_pmu_write_debugctl_msr(vcpu, data);
 		if (!data) {
 			/* We support the non-activated case already */
 			break;
@@ -8828,11 +8803,6 @@ bool kvm_vector_hashing_enabled(void)
 	return vector_hashing;
 }
 EXPORT_SYMBOL_GPL(kvm_vector_hashing_enabled);
-
-void kvm_set_debugctl_lbr(struct kvm_vcpu *vcpu, bool flag)
-{
-	kvm_pmu_set_debugctl_lbr(vcpu, flag);
-}
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_fast_mmio);

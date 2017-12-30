@@ -2,6 +2,7 @@
 #define __KVM_X86_PMU_H
 #include <asm/asm.h>
 #include <asm/vmx.h>
+#include <asm/msr.h>
 #include <linux/kvm_host.h>
 #include <linux/types.h>
 
@@ -23,5 +24,6 @@ void kvm_pmu_destroy(struct kvm_vcpu *vcpu);
 void kvm_handle_pmu_event(struct kvm_vcpu *vcpu);
 void kvm_pmu_set_debugctl_lbr(struct kvm_vcpu *vcpu, bool flag);
 u64 kvm_pmu_read_debugctl_msr(struct kvm_vcpu *vcpu);
+void kvm_pmu_write_debugctl_msr(struct kvm_vcpu *vcpu, u64 data);
 
 #endif /* __KVM_X86_PMU_H */
