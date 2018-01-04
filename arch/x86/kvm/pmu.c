@@ -67,7 +67,6 @@ static struct kvm_arch_event_perf_mapping {
 	unsigned event_type;
 	bool inexact;
 } arch_events[] = {
-	/* Index must match CPUID 0x0A.EBX bit vector */
 	[0] = { 0x3c, 0x00, PERF_COUNT_HW_CPU_CYCLES },
 	[1] = { 0xc0, 0x00, PERF_COUNT_HW_INSTRUCTIONS },
 	[2] = { 0x3c, 0x01, PERF_COUNT_HW_BUS_CYCLES  },
@@ -78,7 +77,6 @@ static struct kvm_arch_event_perf_mapping {
 	[7] = { 0x00, 0x30, PERF_COUNT_HW_REF_CPU_CYCLES },
 };
 
-/* mapping between fixed pmc index and arch_events array */
 int fixed_pmc_events[] = {1, 0, 7};
 
 static bool pmc_is_gp(struct kvm_pmc *pmc)
@@ -178,8 +176,6 @@ static u64 read_pmc(struct kvm_pmc *pmc)
 	if (pmc->perf_event)
 		counter += perf_event_read_value(pmc->perf_event,
 				&enabled, &running);
-
-	/* FIXME: Scaling needed? */
 
 	return counter & pmc_bitmask(pmc);
 }
@@ -424,19 +420,19 @@ int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 	switch (index) {
 		case MSR_CORE_PERF_FIXED_CTR_CTRL:
 			*data = pmu->fixed_ctr_ctrl;
-			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
+			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x FIXED_CTR_CTRL, data = %llx", index, *data);
 			return 0;
 		case MSR_CORE_PERF_GLOBAL_STATUS:
 			*data = pmu->global_status;
-			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
+			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x GLOBAL_STATUS, data = %llx", index, *data);
 			return 0;
 		case MSR_CORE_PERF_GLOBAL_CTRL:
 			*data = pmu->global_ctrl;
-			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
+			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x GLOBAL_CTRL, data = %llx", index, *data);
 			return 0;
 		case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
 			*data = pmu->global_ovf_ctrl;
-			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x, data = %llx", index, *data);
+			printk(KERN_NOTICE "kvm_pmu_get_msr: index = %x GLOBAL_OVF_CTRL, data = %llx", index, *data);
 			return 0;
 		default:
 			if ((pmc = get_gp_pmc(pmu, index, MSR_IA32_PERFCTR0)) ||
@@ -459,10 +455,10 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	struct kvm_pmc *pmc;
 	u32 index = msr_info->index;
 	u64 data = msr_info->data;
-	printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x, data = %llx\n", index, data);
 
 	switch (index) {
 		case MSR_CORE_PERF_FIXED_CTR_CTRL:
+			printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x FIXED_CTR_CTRL, data = %llx\n", index, data);
 			if (pmu->fixed_ctr_ctrl == data)
 				return 0;
 			if (!(data & 0xfffffffffffff444ull)) {
@@ -471,12 +467,14 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			}
 			break;
 		case MSR_CORE_PERF_GLOBAL_STATUS:
+			printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x GLOBAL_STATUS, data = %llx\n", index, data);
 			if (msr_info->host_initiated) {
 				pmu->global_status = data;
 				return 0;
 			}
-			break; /* RO MSR */
+			break;
 		case MSR_CORE_PERF_GLOBAL_CTRL:
+			printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x GLOBAL_CTRL, data = %llx\n", index, data);
 			if (pmu->global_ctrl == data)
 				return 0;
 			if (!(data & pmu->global_ctrl_mask)) {
@@ -485,6 +483,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			}
 			break;
 		case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+			printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x GLOBAL_OVF_CTRL, data = %llx\n", index, data);
 			if (!(data & (pmu->global_ctrl_mask & ~(3ull<<62)))) {
 				if (!msr_info->host_initiated)
 					pmu->global_status &= ~data;
@@ -493,11 +492,13 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			}
 			break;
 		default:
+			printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x, data = %016llx\n", index, data);
 			if ((pmc = get_gp_pmc(pmu, index, MSR_IA32_PERFCTR0)) ||
 					(pmc = get_fixed_pmc(pmu, index))) {
 				if (!msr_info->host_initiated)
 					data = (s64)(s32)data;
 				pmc->counter += data - read_pmc(pmc);
+				printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x,  res = %016llx\n", index, pmc->counter);
 				return 0;
 			} else if ((pmc = get_gp_pmc(pmu, index, MSR_P6_EVNTSEL0))) {
 				if (data == pmc->eventsel)
