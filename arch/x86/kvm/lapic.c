@@ -2048,6 +2048,20 @@ int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type)
 	return 0;
 }
 
+int kvm_apic_local_deliver_nmi(struct kvm_lapic *apic, int lvt_type)
+{
+	u32 reg = kvm_lapic_get_reg(apic, lvt_type);
+	int vector, trig_mode, mode = APIC_MODE_NMI << 8;
+
+	if (kvm_apic_hw_enabled(apic) && !(reg & APIC_LVT_MASKED)) {
+		vector = reg & APIC_VECTOR_MASK;
+		trig_mode = reg & APIC_LVT_LEVEL_TRIGGER;
+		return __apic_accept_irq(apic, mode, vector, 1, trig_mode,
+					NULL);
+	}
+	return 0;
+}
+
 void kvm_apic_nmi_wd_deliver(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;

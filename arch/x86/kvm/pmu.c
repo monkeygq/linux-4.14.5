@@ -668,7 +668,7 @@ void kvm_deliver_pmi(struct kvm_vcpu *vcpu)
 {
 	printk(KERN_NOTICE "kvm_deliver_pmi\n");
 	if (vcpu->arch.apic)
-		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
+		kvm_apic_local_deliver_nmi(vcpu->arch.apic, APIC_LVTPC);
 }
 
 u64 kvm_pmu_read_debugctl_msr(struct kvm_vcpu *vcpu)
