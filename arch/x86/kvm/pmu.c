@@ -192,6 +192,8 @@ static void enable_counter(struct kvm_pmc *pmc)
 	if (pmc->perf_event) {
 		pmc->counter = read_pmc(pmc);
 		perf_event_enable(pmc->perf_event);
+		if (pmc->perf_event->state != PERF_EVENT_STATE_ACTIVE)
+			printk(KERN_NOTICE "enable_counter failed\n");
 	}
 }
 
