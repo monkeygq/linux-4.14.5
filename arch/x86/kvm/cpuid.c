@@ -236,6 +236,7 @@ int expose_pmu_cpuid(struct kvm_vcpu *vcpu)
 {
 	int i, flag = 0;
 	unsigned regs[4];
+	union cpuid10_eax eax;
 	__asm__(
 			"movl $0xa, %%eax\n\t"
 			"cpuid\n\t"
@@ -252,7 +253,9 @@ int expose_pmu_cpuid(struct kvm_vcpu *vcpu)
 			vcpu->arch.cpuid_nent++;
 			vcpu->arch.cpuid_entries[i].function = 0xa;
 		}
-		vcpu->arch.cpuid_entries[i].eax = regs[0];
+		eax.full = regs[0];
+		eax.split.version_id = min((int)eax.split.version_id, 2);
+		vcpu->arch.cpuid_entries[i].eax = eax.full;
 		vcpu->arch.cpuid_entries[i].ebx = regs[1];
 		vcpu->arch.cpuid_entries[i].ecx = regs[2];
 		vcpu->arch.cpuid_entries[i].edx = regs[3];
