@@ -187,6 +187,11 @@ static void disable_counter(struct kvm_pmc *pmc)
 	}
 }
 
+static void kvm_pmc_counter_set(struct kvm_pmc *pmc, bool flag)
+{
+	pmc->counter_set = flag;
+}
+
 static void enable_counter(struct kvm_pmc *pmc)
 {
 	if (pmc->perf_event) {
@@ -283,7 +288,7 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	}
 
 	stop_counter(pmc);
-	pmc->counter_set = 0;
+	kvm_pmc_counter_set(pmc, false);
 
 	event_select = eventsel & ARCH_PERFMON_EVENTSEL_EVENT;
 	unit_mask = (eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
@@ -330,7 +335,7 @@ static void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 en_pmi, int idx)
 	}
 
 	stop_counter(pmc);
-	pmc->counter_set = 0;
+	kvm_pmc_counter_set(pmc, false);
 
 	reprogram_counter(pmc, PERF_TYPE_HARDWARE,
 			arch_events[fixed_pmc_events[idx]].event_type,
@@ -539,7 +544,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 				if (!msr_info->host_initiated)
 					data = (s64)(s32)data;
 				pmc->counter += data - read_pmc(pmc);
-				pmc->counter_set = 1;
+				kvm_pmc_counter_set(pmc, true);
 				printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x,  res = %016llx\n", index, pmc->counter);
 				return 0;
 			} else if ((pmc = get_gp_pmc(pmu, index, MSR_P6_EVNTSEL0))) {
@@ -649,13 +654,13 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 		pmu->gp_counters[i].type = KVM_PMC_GP;
 		pmu->gp_counters[i].vcpu = vcpu;
 		pmu->gp_counters[i].idx = i;
-		pmu->gp_counters[i].counter_set = 0;
+		kvm_pmc_counter_set(&pmu->gp_counters[i], false);
 	}
 	for (i = 0; i < INTEL_PMC_MAX_FIXED; i++) {
 		pmu->fixed_counters[i].type = KVM_PMC_FIXED;
 		pmu->fixed_counters[i].vcpu = vcpu;
 		pmu->fixed_counters[i].idx = i + INTEL_PMC_IDX_FIXED;
-		pmu->fixed_counters[i].counter_set = 0;
+		kvm_pmc_counter_set(&pmu->fixed_counters[i], false);
 	}
 	init_irq_work(&pmu->irq_work, trigger_pmi);
 	kvm_pmu_cpuid_update(vcpu);
@@ -671,13 +676,13 @@ void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 		struct kvm_pmc *pmc = &pmu->gp_counters[i];
 		stop_counter(pmc);
 		pmc->counter = pmc->eventsel = 0;
-		pmc->counter_set = 0;
+		kvm_pmc_counter_set(pmc, false);
 	}
 
 	for (i = 0; i < INTEL_PMC_MAX_FIXED; i++) {
 		struct kvm_pmc *pmc = &pmu->fixed_counters[i];
 		stop_counter(pmc);
-		pmc->counter_set = 0;
+		kvm_pmc_counter_set(pmc, false);
 	}
 
 	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status =
