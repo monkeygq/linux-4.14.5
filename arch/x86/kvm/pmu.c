@@ -179,6 +179,21 @@ static u64 read_pmc(struct kvm_pmc *pmc)
 
 	return counter & pmc_bitmask(pmc);
 }
+static void disable_counter(struct kvm_pmc *pmc)
+{
+	if (pmc->perf_event) {
+		pmc->counter = read_pmc(pmc);
+		perf_event_disable(pmc->perf_event);
+	}
+}
+
+static void enable_counter(struct kvm_pmc *pmc)
+{
+	if (pmc->perf_event) {
+		pmc->counter = read_pmc(pmc);
+		perf_event_enable(pmc->perf_event);
+	}
+}
 
 static void stop_counter(struct kvm_pmc *pmc)
 {
@@ -252,10 +267,21 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 
 	pmc->eventsel = eventsel;
 
-	stop_counter(pmc);
-
-	if (!(eventsel & ARCH_PERFMON_EVENTSEL_ENABLE) || !pmc_enabled(pmc))
+	if (!(eventsel & ARCH_PERFMON_EVENTSEL_ENABLE) || !pmc_enabled(pmc)) {
+		printk(KERN_NOTICE "disable_gp_counter\n");
+		disable_counter(pmc);
 		return;
+	}
+	else {
+		if(pmc->perf_event && !pmc->counter_set) {
+			printk(KERN_NOTICE "enable_gp_counter\n");
+			enable_counter(pmc);
+			return;
+		}
+	}
+
+	stop_counter(pmc);
+	pmc->counter_set = 0;
 
 	event_select = eventsel & ARCH_PERFMON_EVENTSEL_EVENT;
 	unit_mask = (eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
@@ -287,10 +313,22 @@ static void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 en_pmi, int idx)
 	unsigned en = en_pmi & 0x3;
 	bool pmi = en_pmi & 0x8;
 
-	stop_counter(pmc);
 
-	if (!en || !pmc_enabled(pmc))
+	if (!en || !pmc_enabled(pmc)) {
+		printk(KERN_NOTICE "disable_fixed_counter\n");
+		disable_counter(pmc);
 		return;
+	}
+	else {
+		if(pmc->perf_event && !pmc->counter_set) {
+			printk(KERN_NOTICE "enable_fixed_counter\n");
+			enable_counter(pmc);
+			return;
+		}
+	}
+
+	stop_counter(pmc);
+	pmc->counter_set = 0;
 
 	reprogram_counter(pmc, PERF_TYPE_HARDWARE,
 			arch_events[fixed_pmc_events[idx]].event_type,
@@ -499,6 +537,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 				if (!msr_info->host_initiated)
 					data = (s64)(s32)data;
 				pmc->counter += data - read_pmc(pmc);
+				pmc->counter_set = 1;
 				printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x,  res = %016llx\n", index, pmc->counter);
 				return 0;
 			} else if ((pmc = get_gp_pmc(pmu, index, MSR_P6_EVNTSEL0))) {
@@ -608,11 +647,13 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 		pmu->gp_counters[i].type = KVM_PMC_GP;
 		pmu->gp_counters[i].vcpu = vcpu;
 		pmu->gp_counters[i].idx = i;
+		pmu->gp_counters[i].counter_set = 0;
 	}
 	for (i = 0; i < INTEL_PMC_MAX_FIXED; i++) {
 		pmu->fixed_counters[i].type = KVM_PMC_FIXED;
 		pmu->fixed_counters[i].vcpu = vcpu;
 		pmu->fixed_counters[i].idx = i + INTEL_PMC_IDX_FIXED;
+		pmu->fixed_counters[i].counter_set = 0;
 	}
 	init_irq_work(&pmu->irq_work, trigger_pmi);
 	kvm_pmu_cpuid_update(vcpu);
@@ -628,10 +669,14 @@ void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 		struct kvm_pmc *pmc = &pmu->gp_counters[i];
 		stop_counter(pmc);
 		pmc->counter = pmc->eventsel = 0;
+		pmc->counter_set = 0;
 	}
 
-	for (i = 0; i < INTEL_PMC_MAX_FIXED; i++)
-		stop_counter(&pmu->fixed_counters[i]);
+	for (i = 0; i < INTEL_PMC_MAX_FIXED; i++) {
+		struct kvm_pmc *pmc = &pmu->fixed_counters[i];
+		stop_counter(pmc);
+		pmc->counter_set = 0;
+	}
 
 	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status =
 		pmu->global_ovf_ctrl = 0;

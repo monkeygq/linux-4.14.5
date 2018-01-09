@@ -396,6 +396,7 @@ struct kvm_pmc {
 	u8 idx;
 	u64 counter;
 	u64 eventsel;
+	bool counter_set;
 	struct perf_event *perf_event;
 	struct kvm_vcpu *vcpu;
 };
