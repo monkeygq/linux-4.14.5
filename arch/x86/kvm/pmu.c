@@ -505,6 +505,10 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	switch (index) {
 		case MSR_CORE_PERF_FIXED_CTR_CTRL:
 			printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x FIXED_CTR_CTRL, data = %llx\n", index, data);
+			if (data & MSR_ARCH_PERFMON_FIXED_CTR_CTRL_ANY) {
+					printk(KERN_NOTICE "clear FIXED_CTR_CTRL ANY_THREAD bit\n");
+					data &= MSR_ARCH_PERFMON_FIXED_CTR_CTRL_ANY_MASK;
+			}
 			if (pmu->fixed_ctr_ctrl == data)
 				return 0;
 			if (!(data & 0xfffffffffffff444ull)) {
@@ -548,6 +552,10 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 				printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x,  res = %016llx\n", index, pmc->counter);
 				return 0;
 			} else if ((pmc = get_gp_pmc(pmu, index, MSR_P6_EVNTSEL0))) {
+				if (data & ARCH_PERFMON_EVENTSEL_ANY) {
+					printk(KERN_NOTICE "clear gp eventsel ANY_THREAD bit\n");
+					data &= ARCH_PERFMON_EVENTSEL_ANY_MASK;
+				}
 				if (data == pmc->eventsel)
 					return 0;
 				if (!(data & pmu->reserved_bits)) {

@@ -29,6 +29,7 @@
 #define ARCH_PERFMON_EVENTSEL_ENABLE			(1ULL << 22)
 #define ARCH_PERFMON_EVENTSEL_INV			(1ULL << 23)
 #define ARCH_PERFMON_EVENTSEL_CMASK			0xFF000000ULL
+#define ARCH_PERFMON_EVENTSEL_ANY_MASK		(-1ULL - ARCH_PERFMON_EVENTSEL_ANY)
 
 #define HSW_IN_TX					(1ULL << 32)
 #define HSW_IN_TX_CHECKPOINTED				(1ULL << 33)
@@ -133,6 +134,8 @@ struct x86_pmu_capability {
  * All 3 fixed-mode PMCs are configured via this single MSR:
  */
 #define MSR_ARCH_PERFMON_FIXED_CTR_CTRL	0x38d
+#define MSR_ARCH_PERFMON_FIXED_CTR_CTRL_ANY	0x444ull
+#define MSR_ARCH_PERFMON_FIXED_CTR_CTRL_ANY_MASK 0xfffffffffffffbbbull
 
 /*
  * The counts are available in three separate MSRs:
