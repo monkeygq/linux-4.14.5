@@ -9105,13 +9105,13 @@ free_dev:
 static struct lock_class_key cpuctx_mutex;
 static struct lock_class_key cpuctx_lock;
 
-int perf_pmu_register(struct pmu *pmu, const char *name, int type)
+int perf_pmu_register(struct pmu *pmu, const char *name, int type) /* add to pmus(list) or pmu_idr*/
 {
 	int cpu, ret;
 
 	mutex_lock(&pmus_lock);
 	ret = -ENOMEM;
-	pmu->pmu_disable_count = alloc_percpu(int);
+	pmu->pmu_disable_count = alloc_percpu(int); /* 给每个处理器(逻辑核)分配一个指定类型的指针 */
 	if (!pmu->pmu_disable_count)
 		goto unlock;
 
@@ -9566,7 +9566,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 			goto err_ns;
 	}
 
-	pmu = perf_init_event(event);
+	pmu = perf_init_event(event); /* init event->pmu */
 	if (IS_ERR(pmu)) {
 		err = PTR_ERR(pmu);
 		goto err_ns;
