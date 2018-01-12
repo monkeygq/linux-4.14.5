@@ -7,6 +7,25 @@
 #include "lapic.h"
 #include "pmu.h"
 
+static struct x86_pmu_capability* kvm_pmu_get_real_pmu_capability(void)
+{
+	struct x86_pmu_capability *cap = NULL;
+	cap = kmalloc(sizeof(struct x86_pmu_capability), GFP_KERNEL);
+	if(likely(cap)) {
+		perf_get_x86_pmu_capability(cap);
+	}
+	printk(KERN_NOTICE "kvm_pmu_get_real_pmu_capability\n");
+	return cap;
+}
+
+static void kvm_pmu_destroy_cap(struct kvm_pmu *pmu)
+{
+	if (likely(pmu->cap)) {
+		kfree(pmu->cap);
+	}
+	pmu->cap = NULL;
+	printk(KERN_NOTICE "kvm_pmu_destroy_cap\n");
+}
 static inline unsigned long __pmu_vmcs_readl(unsigned long field)
 {
 	unsigned long value;
@@ -233,6 +252,7 @@ static void reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		attr.config |= HSW_IN_TX_CHECKPOINTED;
 
 	attr.sample_period = (-pmc->counter) & pmc_bitmask(pmc);
+	printk(KERN_NOTICE "attr.sample_period = %llx\n", attr.sample_period);
 
 	event = perf_event_create_kernel_counter(&attr, -1, current,
 			intr ? kvm_perf_overflow_intr :
@@ -616,8 +636,18 @@ void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu)
 	pmu->debugctl_lbr = 0;
 
 	entry = kvm_find_cpuid_entry(vcpu, 0xa, 0);
-	if (!entry)
+	if (unlikely(!entry)) {
+		pmu->v_eax.full = 0;
+		pmu->v_ebx.full = 0;
+		pmu->v_edx.full = 0;
 		return;
+	}
+
+	/* update virtual cpuid.eax 0xa */
+	pmu->v_eax.full = entry->eax;
+	pmu->v_ebx.full = entry->ebx;
+	pmu->v_edx.full = entry->edx;
+
 	eax.full = entry->eax;
 	edx.full = entry->edx;
 
@@ -671,6 +701,9 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 		kvm_pmc_counter_set(&pmu->fixed_counters[i], false);
 	}
 	init_irq_work(&pmu->irq_work, trigger_pmi);
+	pmu->cap = kvm_pmu_get_real_pmu_capability();
+	printk(KERN_NOTICE "cap->bit_width_fixed = %d\n", pmu->cap->bit_width_fixed);
+	printk(KERN_NOTICE "cap->bit_width_gp = %d\n", pmu->cap->bit_width_gp);
 	kvm_pmu_cpuid_update(vcpu);
 }
 
@@ -695,11 +728,17 @@ void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 
 	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status =
 		pmu->global_ovf_ctrl = 0;
+
+	kvm_pmu_destroy_cap(&vcpu->arch.pmu);
+	pmu->cap = kvm_pmu_get_real_pmu_capability();
+
+	pmu->v_eax.full = pmu->v_ebx.full = pmu->v_edx.full = 0;
 }
 
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 {
 	kvm_pmu_reset(vcpu);
+	kvm_pmu_destroy_cap(&vcpu->arch.pmu);
 }
 
 void kvm_handle_pmu_event(struct kvm_vcpu *vcpu)

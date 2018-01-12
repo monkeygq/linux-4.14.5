@@ -420,6 +420,15 @@ struct kvm_pmu {
 	struct kvm_pmc fixed_counters[INTEL_PMC_MAX_FIXED];
 	struct irq_work irq_work;
 	u64 reprogram_pmi;
+
+	/* physical cpuid.eax 0xa*/
+	struct x86_pmu_capability *cap;
+
+	/* virtual cpuid.eax 0xa */
+	union cpuid10_eax v_eax;
+	union cpuid10_ebx v_ebx;
+	union cpuid10_edx v_edx;
+
 };
 
 struct kvm_pmu_ops;
