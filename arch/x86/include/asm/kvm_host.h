@@ -399,6 +399,7 @@ struct kvm_pmc {
 	bool counter_set;
 	struct perf_event *perf_event;
 	struct kvm_vcpu *vcpu;
+	int of_cnt; /* used: virtual bit_width > physical bit width */
 };
 
 struct kvm_pmu {
