@@ -103,6 +103,24 @@ static bool pmc_is_gp(struct kvm_pmc *pmc)
 	return pmc->type == KVM_PMC_GP;
 }
 
+static u64 change_data(struct kvm_pmc *pmc, u64 old)
+{
+	int bit_width, n = 0;
+	u64 mask, flag = old;
+	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
+	while(flag) {
+		flag >>= 1;
+		n++;
+	}
+	if (pmc_is_gp(pmc))
+		bit_width = pmu->v_eax.split.bit_width;
+	else
+		bit_width = pmu->v_edx.split.bit_width_fixed;
+	n = max(bit_width, n);
+	mask = (((1ULL << (64 - n)) - 1ULL) << n);
+	return old | mask;
+}
+
 static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
@@ -565,8 +583,12 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x, data = %016llx\n", index, data);
 			if ((pmc = get_gp_pmc(pmu, index, MSR_IA32_PERFCTR0)) ||
 					(pmc = get_fixed_pmc(pmu, index))) {
-				if (!msr_info->host_initiated)
-					data = (s64)(s32)data;
+				if (likely(!msr_info->host_initiated)) {
+					//data = (s64)(s32)data;
+					if (likely(pmc->eventsel || !pmc_is_gp(pmc))) {
+						data = change_data(pmc, data);
+					}
+				}
 				pmc->counter += data - read_pmc(pmc);
 				kvm_pmc_counter_set(pmc, true);
 				printk(KERN_NOTICE "kvm_pmu_set_msr: index = %x,  res = %016llx\n", index, pmc->counter);
